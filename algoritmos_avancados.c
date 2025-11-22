@@ -1,9 +1,67 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Desafio Detective Quest
 // Tema 4 - Árvores e Tabela Hash
 // Este código inicial serve como base para o desenvolvimento das estruturas de navegação, pistas e suspeitos.
 // Use as instruções de cada região para desenvolver o sistema completo com árvore binária, árvore de busca e tabela hash.
+
+typedef struct Sala {
+    char nome[50];
+    struct Sala *esquerda;
+    struct Sala *direita;
+} Sala;
+
+// --- Funções ---
+
+// Documentação: Cria dinamicamente uma sala com nome e ponteiros nulos.
+Sala* criarSala(char *nome) {
+    Sala *novaSala = (Sala*) malloc(sizeof(Sala));
+    if (novaSala != NULL) {
+        strcpy(novaSala->nome, nome);
+        novaSala->esquerda = NULL;
+        novaSala->direita = NULL;
+    }
+    return novaSala;
+}
+
+// Documentação: Permite a navegação do jogador pela árvore até um nó folha ou saída.
+void explorarSalas(Sala *atual) {
+    char opcao;
+    
+    if (atual == NULL) return;
+
+    while (1) {
+        printf("\n--- %s ---\n", atual->nome);
+        
+        // Verifica se é um nó folha (sem saídas)
+        if (atual->esquerda == NULL && atual->direita == NULL) {
+            printf("Você chegou a um beco sem saída (Sala Final).\n");
+            return;
+        }
+
+        printf("Escolha seu caminho: [e]squerda, [d]ireita ou [s]air: ");
+        scanf(" %c", &opcao);
+
+        if (opcao == 's') {
+            printf("Saindo da exploração...\n");
+            return;
+        } else if (opcao == 'e' && atual->esquerda != NULL) {
+            explorarSalas(atual->esquerda); // Recursão para navegar
+            // Ao voltar da recursão, continua no loop deste nível (opcional, dependendo da lógica desejada)
+            // Aqui optamos por retornar ao menu anterior após sair da sub-sala ou encerrar.
+            // Para navegação contínua linear, basta chamar a função. 
+            // Se o objetivo é 'descer' e não voltar automaticamente, o return abaixo controla isso.
+            return; 
+        } else if (opcao == 'd' && atual->direita != NULL) {
+            explorarSalas(atual->direita);
+            return;
+        } else {
+            printf("Opção inválida ou caminho inexistente.\n");
+        }
+    }
+}
 
 int main() {
 
@@ -41,6 +99,23 @@ int main() {
     // - Para hashing simples, pode usar soma dos valores ASCII do nome ou primeira letra.
     // - Em caso de colisão, use lista encadeada para tratar.
     // - Modularize com funções como inicializarHash(), buscarSuspeito(), listarAssociacoes().
+
+    Sala *hall = criarSala("Hall de Entrada");
+    Sala *salaEstar = criarSala("Sala de Estar");
+    Sala *cozinha = criarSala("Cozinha");
+    Sala *biblioteca = criarSala("Biblioteca");
+    Sala *jardim = criarSala("Jardim"); 
+
+    hall->esquerda = salaEstar;
+    hall->direita = cozinha;
+    salaEstar->esquerda = biblioteca;
+    salaEstar->direita = jardim;
+
+    printf("=== Detective Quest: Nível Novato ===\n");
+    explorarSalas(hall);
+
+    // Liberação de memória simplificada (idealmente percorreria a árvore)
+    free(jardim); free(biblioteca); free(cozinha); free(salaEstar); free(hall);
 
     return 0;
 }
