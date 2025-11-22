@@ -7,58 +7,98 @@
 // Este código inicial serve como base para o desenvolvimento das estruturas de navegação, pistas e suspeitos.
 // Use as instruções de cada região para desenvolver o sistema completo com árvore binária, árvore de busca e tabela hash.
 
+// --- Estruturas ---
+
+// Estrutura da Árvore de Busca para Pistas
+typedef struct PistaNode {
+    char texto[100];
+    struct PistaNode *esquerda;
+    struct PistaNode *direita;
+} PistaNode;
+
+// Estrutura da Árvore Binária do Mapa (agora com pista opcional)
 typedef struct Sala {
     char nome[50];
+    char pista[100]; // Se vazio, sala não tem pista
     struct Sala *esquerda;
     struct Sala *direita;
 } Sala;
 
-// --- Funções ---
+// --- Funções Auxiliares ---
 
-// Documentação: Cria dinamicamente uma sala com nome e ponteiros nulos.
-Sala* criarSala(char *nome) {
+Sala* criarSala(char *nome, char *pista) {
     Sala *novaSala = (Sala*) malloc(sizeof(Sala));
     if (novaSala != NULL) {
         strcpy(novaSala->nome, nome);
+        if (pista != NULL) strcpy(novaSala->pista, pista);
+        else strcpy(novaSala->pista, "");
         novaSala->esquerda = NULL;
         novaSala->direita = NULL;
     }
     return novaSala;
 }
 
-// Documentação: Permite a navegação do jogador pela árvore até um nó folha ou saída.
-void explorarSalas(Sala *atual) {
-    char opcao;
+// Documentação: Insere uma nova pista na árvore BST em ordem alfabética.
+PistaNode* inserirPista(PistaNode *raiz, char *texto) {
+    if (raiz == NULL) {
+        PistaNode *novo = (PistaNode*) malloc(sizeof(PistaNode));
+        strcpy(novo->texto, texto);
+        novo->esquerda = NULL;
+        novo->direita = NULL;
+        printf(">> Pista coletada: '%s'\n", texto);
+        return novo;
+    }
     
-    if (atual == NULL) return;
+    if (strcmp(texto, raiz->texto) < 0) {
+        raiz->esquerda = inserirPista(raiz->esquerda, texto);
+    } else if (strcmp(texto, raiz->texto) > 0) {
+        raiz->direita = inserirPista(raiz->direita, texto);
+    }
+    // Se for igual, não insere duplicado
+    return raiz;
+}
 
+// Documentação: Imprime a árvore de pistas em ordem alfabética (em-ordem).
+void exibirPistas(PistaNode *raiz) {
+    if (raiz != NULL) {
+        exibirPistas(raiz->esquerda);
+        printf("- %s\n", raiz->texto);
+        exibirPistas(raiz->direita);
+    }
+}
+
+// Documentação: Controla a navegação e coleta de pistas.
+// Passamos o ponteiro da raiz de pistas por referência para atualizá-lo
+void explorarSalasComPistas(Sala *salaAtual, PistaNode **raizPistas) {
+    if (salaAtual == NULL) return;
+
+    char opcao;
     while (1) {
-        printf("\n--- %s ---\n", atual->nome);
-        
-        // Verifica se é um nó folha (sem saídas)
-        if (atual->esquerda == NULL && atual->direita == NULL) {
-            printf("Você chegou a um beco sem saída (Sala Final).\n");
-            return;
+        printf("\n--- Local: %s ---\n", salaAtual->nome);
+
+        // Coleta automática de pista se houver e ainda não tiver sido pega (simplificado aqui para sempre tentar inserir)
+        if (strlen(salaAtual->pista) > 0) {
+            printf("Você encontrou algo aqui!\n");
+            *raizPistas = inserirPista(*raizPistas, salaAtual->pista);
+            // Para evitar spam, poderíamos limpar a pista da sala, mas o requisito diz "estático" no mapa.
+            // O `inserirPista` trata duplicatas simples.
         }
 
-        printf("Escolha seu caminho: [e]squerda, [d]ireita ou [s]air: ");
+        printf("Opções: [e]squerda, [d]ireita, [s]air: ");
         scanf(" %c", &opcao);
 
-        if (opcao == 's') {
-            printf("Saindo da exploração...\n");
+        if (opcao == 's') return;
+        
+        if (opcao == 'e' && salaAtual->esquerda != NULL) {
+            explorarSalasComPistas(salaAtual->esquerda, raizPistas);
             return;
-        } else if (opcao == 'e' && atual->esquerda != NULL) {
-            explorarSalas(atual->esquerda); // Recursão para navegar
-            // Ao voltar da recursão, continua no loop deste nível (opcional, dependendo da lógica desejada)
-            // Aqui optamos por retornar ao menu anterior após sair da sub-sala ou encerrar.
-            // Para navegação contínua linear, basta chamar a função. 
-            // Se o objetivo é 'descer' e não voltar automaticamente, o return abaixo controla isso.
-            return; 
-        } else if (opcao == 'd' && atual->direita != NULL) {
-            explorarSalas(atual->direita);
+        } else if (opcao == 'd' && salaAtual->direita != NULL) {
+            explorarSalasComPistas(salaAtual->direita, raizPistas);
             return;
+        } else if ((opcao == 'e' && !salaAtual->esquerda) || (opcao == 'd' && !salaAtual->direita)) {
+            printf("Não há caminho nessa direção.\n");
         } else {
-            printf("Opção inválida ou caminho inexistente.\n");
+            printf("Comando inválido.\n");
         }
     }
 }
@@ -100,22 +140,23 @@ int main() {
     // - Em caso de colisão, use lista encadeada para tratar.
     // - Modularize com funções como inicializarHash(), buscarSuspeito(), listarAssociacoes().
 
-    Sala *hall = criarSala("Hall de Entrada");
-    Sala *salaEstar = criarSala("Sala de Estar");
-    Sala *cozinha = criarSala("Cozinha");
-    Sala *biblioteca = criarSala("Biblioteca");
-    Sala *jardim = criarSala("Jardim"); 
+    PistaNode *inventarioPistas = NULL;
 
-    hall->esquerda = salaEstar;
+    // Montagem do Mapa
+    Sala *hall = criarSala("Hall de Entrada", "Pegada de lama");
+    Sala *cozinha = criarSala("Cozinha", "Faca suja");
+    Sala *biblioteca = criarSala("Biblioteca", "Livro rasgado");
+    
     hall->direita = cozinha;
-    salaEstar->esquerda = biblioteca;
-    salaEstar->direita = jardim;
+    hall->esquerda = biblioteca;
 
-    printf("=== Detective Quest: Nível Novato ===\n");
-    explorarSalas(hall);
+    printf("=== Detective Quest: Nível Aventureiro ===\n");
+    explorarSalasComPistas(hall, &inventarioPistas);
 
-    // Liberação de memória simplificada (idealmente percorreria a árvore)
-    free(jardim); free(biblioteca); free(cozinha); free(salaEstar); free(hall);
+    printf("\n=== Fim da Exploração ===\n");
+    printf("Pistas coletadas (Ordem Alfabética):\n");
+    if (inventarioPistas == NULL) printf("Nenhuma pista encontrada.\n");
+    else exibirPistas(inventarioPistas);
 
     return 0;
 }
